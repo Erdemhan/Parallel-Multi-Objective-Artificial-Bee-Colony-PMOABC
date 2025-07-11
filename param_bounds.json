@@ -1,0 +1,16 @@
+{
+  "LEARNING_RATE_ACTOR": [1e-5, 1e-3],
+  "LEARNING_RATE_CRITIC": [1e-4, 1e-2],
+  "TAU": [1e-4, 1e-2],
+  "DISCOUNT": [0.9, 0.999],
+  "NOISE_STD": [0.4, 1.0],
+  "NOISE_DECAY": [0.9, 0.99],
+  "ITERATION": [3, 20],
+  "FAILSTACK": [2, 15],
+  "PPO_GAMMA": [0.95, 0.999],
+  "PPO_GAE_LAMBDA": [0.9, 0.99],
+  "PPO_CLIP_PARAM": [0.1, 0.3],
+  "PPO_PPO_EPOCHS": [5, 15],
+  "LEARNING_RATE_ALPHA": [1e-5, 1e-3],
+  "INITIAL_ALPHA": [0.1, 0.5]
+}
