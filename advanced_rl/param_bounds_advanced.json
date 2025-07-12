@@ -1,0 +1,28 @@
+// ===============================================
+// param_bounds_advanced.json
+// -----------------------------------------------
+// This file defines the search space for hyperparameter optimization.
+// Each key corresponds to a tunable parameter used by RL agents.
+// Values are given as [min, max] bounds and sampled continuously.
+// Used by: PMOABC optimizer via 'hyperparam_optimization.py'
+// ===============================================
+{
+  "LEARNING_RATE_ACTOR": [1e-5, 1e-3],         // Actor network learning rate (used in DDPG, TD3)
+  "LEARNING_RATE_CRITIC": [1e-4, 1e-2],        // Critic network learning rate (used in DDPG, TD3)
+  "TAU": [1e-4, 1e-2],                         // Soft update coefficient for target networks
+  "DISCOUNT": [0.9, 0.999],                    // Discount factor (gamma) for reward accumulation
+  "NOISE_STD": [0.4, 1.0],                     // Standard deviation of exploration noise
+  "NOISE_DECAY": [0.9, 0.99],                  // Decay rate for noise over time
+  "ITERATION": [3, 20],                        // Number of training iterations per episode
+  "FAILSTACK": [2, 15],                        // Custom parameter used to define retry logic or failure threshold
+
+  // PPO-specific parameters
+  "PPO_GAMMA": [0.95, 0.999],                  // Discount factor for PPO
+  "PPO_GAE_LAMBDA": [0.9, 0.99],               // GAE smoothing factor
+  "PPO_CLIP_PARAM": [0.1, 0.3],                // PPO policy clipping range
+  "PPO_PPO_EPOCHS": [5, 15],                   // Number of epochs per PPO update
+
+  // SAC-specific parameters
+  "LEARNING_RATE_ALPHA": [1e-5, 1e-3],         // Entropy coefficient optimizer learning rate (SAC)
+  "INITIAL_ALPHA": [0.1, 0.5]                  // Initial entropy temperature value (SAC)
+}

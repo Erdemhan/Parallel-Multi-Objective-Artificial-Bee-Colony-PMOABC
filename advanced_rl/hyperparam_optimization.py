@@ -1,31 +1,59 @@
+# ==============================================
+# hyperparam_optimization.py
+# ----------------------------------------------
+# This script defines how the MOABC algorithm interfaces with an external
+# reinforcement learning simulator (Django-based project `abmem_web`).
+# It creates simulations, runs them, evaluates outputs, and acts as the fitness function
+# for optimization.
+# 
+# ✅ External dependency: https://github.com/Erdemhan/abmem_web
+# This file assumes:
+#   - You have a Django simulation model with proxy simulations.
+#   - Offers are logged at `abm_ddpg/sim_data/simulation_{sim_id}_offers.json`
+#   - Simulation state transitions match enum logic in `abmem.models.enums`
+# ==============================================
+
 import sys
 import os
 import numpy as np
 import json
 import pandas as pd
 import copy
+
+# Add project root to path for Django module access
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../')))
+
+# Set up Django context for database/model access
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "web_project.settings")
 import django
 django.setup()
+
 from datetime import datetime
-from abmem.services.simulation.simulation_service import run
+from abmem.services.simulation.simulation_service import run  # 🧠 External simulation execution logic
 from abmem.models.simulation import Simulation
 from abmem.models import enums
 from django.shortcuts import get_object_or_404
-from moabc import MOABC
-from abc_logger import ABCLogger
 
+from core.pmoabc import MOABC
+from core.abc_logger import ABCLogger
 
-# Global değişkenler
+# ========================
+# Load hyperparameter bounds
+# ========================
 ALGORITHM_TYPE = None
 with open("param_bounds.json", "r") as f:
     PARAM_BOUNDS = json.load(f)
 
-
+# =====================================================
+# Create a deep copy of an existing simulation proxy
+# Used for starting clean RL simulations with same setup
+# -----------------------------------------------------
+# ⚠️ Requires that `abmem_web` database contains simulation with given proxy_id
+# =====================================================
 def create_simulation_from_proxy(proxy_id: int) -> Simulation:
     simulation = get_object_or_404(Simulation, id=proxy_id)
     if simulation.proxy or simulation.state != enums.SimulationState.CREATED:
+        # Deep copy simulation
         newSimulation = copy.deepcopy(simulation)
         newSimulation.id = None
         newSimulation.state = enums.SimulationState.CREATED
@@ -33,6 +61,7 @@ def create_simulation_from_proxy(proxy_id: int) -> Simulation:
         newSimulation.proxy = False
         newSimulation.save()
 
+        # Copy associated market
         newMarket = copy.deepcopy(simulation.market)
         newMarket.id = None
         newMarket.state = enums.MarketState.CREATED
@@ -40,6 +69,7 @@ def create_simulation_from_proxy(proxy_id: int) -> Simulation:
         newMarket.proxy = False
         newMarket.save()
 
+        # Copy each agent, its portfolio, and plants
         for agent in list(simulation.market.agent_set.all()):
             newAgent = copy.deepcopy(agent)
             newAgent.id = None
@@ -62,9 +92,14 @@ def create_simulation_from_proxy(proxy_id: int) -> Simulation:
 
         return newSimulation
 
+    return simulation
 
+# =====================================================
+# Evaluate a finished simulation by reading its output JSON
+# The output file must contain period-based market and agent offers
+# =====================================================
 def evaluate_result(sim_id: int) -> tuple:
-    path = f"abm_ddpg/sim_data/simulation_{sim_id}_offers.json"
+    path = f"abm_ddpg/sim_data/simulation_{sim_id}_offers.json"  # ⚠️ Static path assumption
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
 
@@ -88,8 +123,9 @@ def evaluate_result(sim_id: int) -> tuple:
 
     df = pd.DataFrame(records)
     if df.empty:
-        return 0.0, 0.0
+        return 0.0, 0.0  # Fallback in case of empty or invalid output
 
+    # --- Agent score calculation ---
     price_cap = 200
     num_periods = df['period'].nunique()
     agents = df['agent'].unique()
@@ -120,6 +156,8 @@ def evaluate_result(sim_id: int) -> tuple:
         agent_scores[agent] = score
 
     agent_score = np.mean(list(agent_scores.values()))
+
+    # --- Market score calculation ---
     mcp_avg = df['market_price'].mean()
     avg_offer_price = df['offer_price'].mean()
     mci = mcp_avg / price_cap
@@ -128,22 +166,27 @@ def evaluate_result(sim_id: int) -> tuple:
 
     return agent_score, market_score
 
-
+# =====================================================
+# Main simulation wrapper. Performs validation, simulation run,
+# and evaluation — all in one. This function is used as fitness_func in MOABC.
+# =====================================================
 def simulate_multi(params: dict) -> tuple:
     if ALGORITHM_TYPE == "PPO" and not params.get("PPO_GAMMA"):
         raise ValueError("PPO_GAMMA eksik.")
     if ALGORITHM_TYPE == "SAC" and not params.get("LEARNING_RATE_ALPHA"):
         raise ValueError("LEARNING_RATE_ALPHA eksik.")
 
-    sim = create_simulation_from_proxy(529)
-    run(sim, hyperparams=params)
+    sim = create_simulation_from_proxy(529)  # ⚠️ You must ensure proxy with id=529 exists in DB
+    run(sim, hyperparams=params)             # 🔧 Core sim execution (abmem.services.simulation)
     agent_score, market_score = evaluate_result(sim.id)
     return agent_score, market_score, sim.id
 
-
+# =====================================================
+# Main callable for launching an optimization session
+# Can be used standalone or via run_optimization.py
+# =====================================================
 def optimize_hyperparams(colony_size=2, max_iter=2, limit=10, seed=17081999,
                          algorithm_type="DDPG", logger: ABCLogger = None) -> None:
-    
     global ALGORITHM_TYPE, PARAM_BOUNDS
     ALGORITHM_TYPE = algorithm_type
 
@@ -172,7 +215,7 @@ def optimize_hyperparams(colony_size=2, max_iter=2, limit=10, seed=17081999,
         else:
             print(out)
 
-
+# Manual run mode (if file is run directly)
 if __name__ == "__main__":
     import timeit
     start = timeit.default_timer()
