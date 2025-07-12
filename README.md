@@ -53,6 +53,18 @@ MOABC is an advanced variant of the Artificial Bee Colony algorithm that:
 ```bash
 git clone https://github.com/Erdemhan/Parallel-Multi-Objective-Artificial-Bee-Colony-PMOABC.git
 cd Parallel-Multi-Objective-Artificial-Bee-Colony-PMOABC
+pip install -r requirements.txt
+```
+
+### (Optional but recommended)
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+### Install Dependencies
+```bash
+pip install -r requirements.txt
 ```
 
 ### Run Toy Example
