@@ -110,6 +110,7 @@ optimizer = MOABC(
     algorithm_type="MyAlgorithm"
 )
 optimizer.optimize()
+```
 
 ## 🛠️ Advanced Options
 
